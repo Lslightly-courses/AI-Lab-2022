@@ -239,7 +239,7 @@ public:
 		}
 		return result;
 	}
-	string traverse() {
+	string Trace() {
 		return traceback;
 	}
 	void print() {
@@ -494,7 +494,7 @@ public:
 		auto target_s = get_state_from_txt(target_txt);
 		start = clock();
 		auto node_ptr = algo(algo_str, start_s, target_s);
-		auto solution = node_ptr->traverse();
+		auto solution = node_ptr->Trace();
 		delete node_ptr;
 		end = clock();
 		double duration = double(end-start)/CLOCKS_PER_SEC;
