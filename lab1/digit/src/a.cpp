@@ -462,7 +462,7 @@ private:
 	}
 	Node* algo(string algo, State *start_s, State *target_s) {
 		walk_ability = new WalkAbility(start_s->get_dist());
-		walk_ability->print();
+		DEBUGUSE(walk_ability->print();)
 		if (algo == "A_h1") {
 			Hfunc = A_h1;
 			return AStar(start_s, target_s, A_h1);
@@ -488,7 +488,7 @@ private:
 		fout.close();
 	}
 public:
-	void run(string algo_str, string input_txt, string target_txt) {
+	void allrun(string algo_str, string input_txt, string target_txt) {
 		clock_t start, end;
 		auto start_s = get_state_from_txt(input_txt);
 		auto target_s = get_state_from_txt(target_txt);
@@ -501,20 +501,29 @@ public:
 		output(algo_str, {solution, duration});
 		clear();
 	}
+	void run(string algo_str, string input_txt, string target_txt) {
+		auto start_s = get_state_from_txt(input_txt);
+		auto target_s = get_state_from_txt(target_txt);
+		auto node_ptr = algo(algo_str, start_s, target_s);
+		auto solution = node_ptr->Trace();
+		delete node_ptr;
+		cout << solution;
+		clear();
+	}
 };
 
 void getAll();
 
 int main(int argc, char **argv) {
-	// if (argc != 4) {
-	// 	cerr << "3 argument need, get " << argc-1;
-	// }
-	// string algo = argv[1];
-	// string input_txt = argv[2];
-	// string target_txt = argv[3];
-	// Driver driver;
-	// driver.run(algo, input_txt, target_txt);
-	getAll();
+	if (argc != 4) {
+		cerr << "3 argument need, get " << argc-1;
+	}
+	string algo = argv[1];
+	string input_txt = argv[2];
+	string target_txt = argv[3];
+	Driver driver;
+	driver.run(algo, input_txt, target_txt);
+	DEBUGUSE(getAll();)
 	return 0;
 }
 
@@ -525,13 +534,13 @@ void getAll() {
 	for (int i = 0; i < 10; i++) {
 		input_txt = input_prefix+"0"+to_string(i)+suffix;
 		target_txt = target_prefix + "0" + to_string(i) + suffix;
-		cout << input_txt << " " << target_txt << endl;
-		driver.run("IDA_h2", input_txt, target_txt);
+		DEBUGUSE(cout << input_txt << " " << target_txt << endl;)
+		driver.allrun("A_h2", input_txt, target_txt);
 	}
 	for (int i = 10; i < 12; i++) {
 		input_txt = input_prefix+to_string(i)+suffix;
 		target_txt = target_prefix + to_string(i) + suffix;
-		cout << input_txt << " " << target_txt << endl;
-		driver.run("IDA_h2", input_txt, target_txt);
+		DEBUGUSE(cout << input_txt << " " << target_txt << endl;)
+		driver.allrun("A_h2", input_txt, target_txt);
 	}
 }
