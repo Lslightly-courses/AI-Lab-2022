@@ -269,8 +269,7 @@ public:
 	}
 };
 
-int A_h1(const vector<vector<int>> &start, const vector<vector<int>>
-&target) {
+int h1(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	int count = 0;
 	for (int i = 0; i < DIM; i++) {
 		for (int j = 0; j < DIM; j++) {
@@ -280,8 +279,8 @@ int A_h1(const vector<vector<int>> &start, const vector<vector<int>>
 	}
 	return count;
 }
-int A_h2(const vector<vector<int> > &start, const vector<vector<int>>
-&target) {
+
+int h2(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	Location two_locs[DIM*DIM][2];
 	for (int i = 0; i < DIM; i++) {
 		for (int j = 0; j < DIM; j++) {
@@ -299,47 +298,62 @@ int A_h2(const vector<vector<int> > &start, const vector<vector<int>>
 			max_dist = min_i_dist + min_j_dist;
 		}
 	}
-	auto ah1 = A_h1(start, target);
+	auto ah1 = h1(start, target);
 	if (max_dist < ah1) {
 		max_dist = ah1;
 	}
 	return max_dist;
 }
-int IDA_h1(const vector<vector<int> > &start, const vector<vector<int>>
-&target) {
-	int count = 0;
+
+Location getMyLocation(const vector<vector<int>> &dist) {
+	vector<vector<int>> dist;
+	Location my_loc;
 	for (int i = 0; i < DIM; i++) {
 		for (int j = 0; j < DIM; j++) {
-			if (start[i][j] != target[i][j] && target[i][j] != 0)
-				count++;
+			if (dist[i][j] == 0) {
+				my_loc.i = i;
+				my_loc.j = j;
+				return my_loc;
+			}
 		}
 	}
-	return count;
 }
-int IDA_h2(const vector<vector<int> > &start, const vector<vector<int>>
-&target) {
-	Location two_locs[DIM*DIM][2];
-	for (int i = 0; i < DIM; i++) {
-		for (int j = 0; j < DIM; j++) {
-			two_locs[start[i][j]][0] = {i, j};
-			two_locs[target[i][j]][1] = {i, j};
-		}
-	}
-	int max_dist = 0;
-	for (int i = 0; i < DIM*DIM; i++) {
-		auto i_dist_abs = abs(two_locs[i][0].i - two_locs[i][1].i);
-		auto j_dist_abs = abs(two_locs[i][0].j - two_locs[i][1].j);
-		auto min_i_dist = min(i_dist_abs, DIM-i_dist_abs);
-		auto min_j_dist = min(j_dist_abs, DIM-j_dist_abs);
-		if (max_dist < min_i_dist + min_j_dist) {
-			max_dist = min_i_dist + min_j_dist;
-		}
-	}
-	auto ah1 = A_h1(start, target);
-	if (max_dist < ah1) {
-		max_dist = ah1;
-	}
-	return max_dist;
+
+void A_h1(const vector<vector<int>> &start, const vector<vector<int>> &target) {
+	auto start_s = State::create_state(start, getMyLocation(start));
+	walk_ability = new WalkAbility(start_s->get_dist());
+	auto target_s = State::create_state(target, getMyLocation(target));
+	auto n = AStar(start_s, target_s, h1);
+	auto solution = n->Trace();
+	cout << solution;
+	free(walk_ability);
+}
+void A_h2(const vector<vector<int> > &start, const vector<vector<int>> &target) {
+	auto start_s = State::create_state(start, getMyLocation(start));
+	walk_ability = new WalkAbility(start_s->get_dist());
+	auto target_s = State::create_state(target, getMyLocation(target));
+	auto n = AStar(start_s, target_s, h2);
+	auto solution = n->Trace();
+	cout << solution;
+	free(walk_ability);
+}
+void IDA_h1(const vector<vector<int> > &start, const vector<vector<int>> &target) {
+	auto start_s = State::create_state(start, getMyLocation(start));
+	walk_ability = new WalkAbility(start_s->get_dist());
+	auto target_s = State::create_state(target, getMyLocation(target));
+	auto n = IDAStar(start_s, target_s, h1);
+	auto solution = n->Trace();
+	cout << solution;
+	free(walk_ability);
+}
+void IDA_h2(const vector<vector<int> > &start, const vector<vector<int>> &target) {
+	auto start_s = State::create_state(start, getMyLocation(start));
+	walk_ability = new WalkAbility(start_s->get_dist());
+	auto target_s = State::create_state(target, getMyLocation(target));
+	auto n = IDAStar(start_s, target_s, h2);
+	auto solution = n->Trace();
+	cout << solution;
+	free(walk_ability);
 }
 
 typedef struct {} Empty;
@@ -438,7 +452,7 @@ private:
 	void clear() {
 		free(walk_ability);
 	}
-	State *get_state_from_txt(string src) {
+	vector<vector<int>> get_vec_from_txt(string src) {
 		ifstream fin;
 		fin.open(src);
 		string line;
@@ -458,23 +472,17 @@ private:
 			dist.push_back(row);
 		}
 		fin.close();
-		return State::create_state(dist, my_loc);
+		return dist;
 	}
-	Node* algo(string algo, State *start_s, State *target_s) {
-		walk_ability = new WalkAbility(start_s->get_dist());
-		DEBUGUSE(walk_ability->print();)
+	void algo(string algo, vector<vector<int>> &start, vector<vector<int>> &target) {
 		if (algo == "A_h1") {
-			Hfunc = A_h1;
-			return AStar(start_s, target_s, A_h1);
+			A_h1(start, target);
 		} else if (algo == "A_h2") {
-			Hfunc = A_h2;
-			return AStar(start_s, target_s, A_h2);
+			A_h2(start, target);
 		} else if (algo == "IDA_h1") {
-			Hfunc = IDA_h1;
-			return IDAStar(start_s, target_s, IDA_h1);
+			IDA_h1(start, target);
 		} else if (algo == "IDA_h2") {
-			Hfunc = IDA_h2;
-			return IDAStar(start_s, target_s, IDA_h2);
+			IDA_h2(start, target);
 		} else {
 			cerr << "invalid algorithm " << algo;
 			exit(1);
@@ -488,27 +496,23 @@ private:
 		fout.close();
 	}
 public:
-	void allrun(string algo_str, string input_txt, string target_txt) {
-		clock_t start, end;
-		auto start_s = get_state_from_txt(input_txt);
-		auto target_s = get_state_from_txt(target_txt);
-		start = clock();
-		auto node_ptr = algo(algo_str, start_s, target_s);
-		auto solution = node_ptr->Trace();
-		delete node_ptr;
-		end = clock();
-		double duration = double(end-start)/CLOCKS_PER_SEC;
-		output(algo_str, {solution, duration});
-		clear();
-	}
+	// void allrun(string input_txt, string target_txt) {
+	// 	clock_t start, end;
+	// 	auto start = get_vec_from_txt(input_txt);
+	// 	auto target = get_vec_from_txt(target_txt);
+	// 	start = clock();
+	// 	auto node_ptr = algo(algo_str, start, target);
+	// 	auto solution = node_ptr->Trace();
+	// 	delete node_ptr;
+	// 	end = clock();
+	// 	double duration = double(end-start)/CLOCKS_PER_SEC;
+	// 	output(algo_str, {solution, duration});
+	// 	clear();
+	// }
 	void run(string algo_str, string input_txt, string target_txt) {
-		auto start_s = get_state_from_txt(input_txt);
-		auto target_s = get_state_from_txt(target_txt);
-		auto node_ptr = algo(algo_str, start_s, target_s);
-		auto solution = node_ptr->Trace();
-		delete node_ptr;
-		cout << solution;
-		clear();
+		auto start = get_vec_from_txt(input_txt);
+		auto target = get_vec_from_txt(target_txt);
+		algo(algo_str, start, target);
 	}
 };
 
@@ -528,19 +532,19 @@ int main(int argc, char **argv) {
 }
 
 void getAll() {
-	string input_prefix = "../../data/input", target_prefix = "../../data/target", suffix = ".txt";
-	string input_txt = "", target_txt = "";
-	Driver driver;
-	for (int i = 0; i < 10; i++) {
-		input_txt = input_prefix+"0"+to_string(i)+suffix;
-		target_txt = target_prefix + "0" + to_string(i) + suffix;
-		DEBUGUSE(cout << input_txt << " " << target_txt << endl;)
-		driver.allrun("A_h2", input_txt, target_txt);
-	}
-	for (int i = 10; i < 12; i++) {
-		input_txt = input_prefix+to_string(i)+suffix;
-		target_txt = target_prefix + to_string(i) + suffix;
-		DEBUGUSE(cout << input_txt << " " << target_txt << endl;)
-		driver.allrun("A_h2", input_txt, target_txt);
-	}
+	// string input_prefix = "../../data/input", target_prefix = "../../data/target", suffix = ".txt";
+	// string input_txt = "", target_txt = "";
+	// Driver driver;
+	// for (int i = 0; i < 10; i++) {
+	// 	input_txt = input_prefix+"0"+to_string(i)+suffix;
+	// 	target_txt = target_prefix + "0" + to_string(i) + suffix;
+	// 	DEBUGUSE(cout << input_txt << " " << target_txt << endl;)
+	// 	driver.allrun("A_h2", input_txt, target_txt);
+	// }
+	// for (int i = 10; i < 12; i++) {
+	// 	input_txt = input_prefix+to_string(i)+suffix;
+	// 	target_txt = target_prefix + to_string(i) + suffix;
+	// 	DEBUGUSE(cout << input_txt << " " << target_txt << endl;)
+	// 	driver.allrun("A_h2", input_txt, target_txt);
+	// }
 }
