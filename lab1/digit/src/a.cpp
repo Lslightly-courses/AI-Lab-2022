@@ -333,7 +333,7 @@ int h2(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 		}
 	}
 	int max_dist = 0;
-	for (int i = 0; i < DIM*DIM; i++) {
+	for (int i = 1; i < DIM*DIM; i++) {
 		auto i_dist_abs = abs(two_locs[i][0].i - two_locs[i][1].i);
 		auto j_dist_abs = abs(two_locs[i][0].j - two_locs[i][1].j);
 		auto min_i_dist = min(i_dist_abs, DIM-i_dist_abs);
@@ -579,17 +579,17 @@ private:
 			exit(1);
 		}
 	}
-	void statistic(string algo, string input_txt, string target_txt) {
+	void statistic(string algo, string input_txt, string target_txt, int i) {
 		cout << algo << ":\t" << input_txt << "\t";
 		auto start = chrono::system_clock::now();
 		run(algo, input_txt, target_txt);
 		auto end = chrono::system_clock::now();
 		auto duration = chrono::duration_cast<chrono::microseconds>(end-start);
 		auto time = double(duration.count())*chrono::microseconds::period::num / chrono::microseconds::period::den;
-		out_str[algo] += solution_str+","+to_string(time)+"\n";
+		out_str[algo] += to_string(i) + "," + to_string(time) + "," + solution_str + "," + to_string(solution_str.length()) + "\n";
 	}
 	void output(string algo) {
-		auto output_txt = "../output/"+algo+".txt";
+		auto output_txt = "../output/output_"+algo+".txt";
 		auto f = freopen(output_txt.c_str(), "w", stdout);
 		cout << out_str[algo];
 		fclose(f);
@@ -611,12 +611,14 @@ public:
 		out_str["A_h2"] = "";
 		out_str["IDA_h1"] = "";
 		out_str["IDA_h2"] = "";
+		int i = 0;
 		for (auto num_suffix: num_suffixs) {
 			auto input_txt = input_prefix+num_suffix, target_txt = target_prefix+num_suffix;
-			statistic("A_h1", input_txt, target_txt);
-			statistic("A_h2", input_txt, target_txt);
-			statistic("IDA_h1", input_txt, target_txt);
-			statistic("IDA_h2", input_txt, target_txt);
+			statistic("A_h1", input_txt, target_txt, i);
+			statistic("A_h2", input_txt, target_txt, i);
+			statistic("IDA_h1", input_txt, target_txt, i);
+			statistic("IDA_h2", input_txt, target_txt, i);
+			i++;
 		}
 		output("A_h1");
 		output("A_h2");
