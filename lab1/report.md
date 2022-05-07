@@ -105,13 +105,21 @@ IDA_h2
 
 最重要的一点优化是在进行expand时，根据生成该节点时采用的方向，不生成反方向的节点，因为反方向一定是没有用的。如果从上往下走，则扩展节点一定不会从下回到上。该优化将时间从大概190s降低至5,6s
 
+## 运行程序备注
+
+程序只输出给定input和target情况下的行动序列
+
+如果需要时间统计以及运行结果等输出，请使用`g++ -DOUT a.cpp`的方式生成可执行文件，`data`输入文件夹与`src`文件夹同级
+
 # 实验1.2
 
 ## 集合
 
 变量集合：每天每人的情况
 
-值域集合：1.UNASSIGNED(表示未赋值)。2.RELAX(表示休息)。3.WORK(表示工作)
+值域集合：1.RELAX(表示休息)。2.WORK(表示工作)
+
+赋值除了以上两个还包括UNASSIGNED表示未赋值
 
 约束集合：题中所给限制
 
@@ -154,18 +162,29 @@ bool backtrack(State &s, CSP &csp) {
 }
 ```
 
-1. 检查是否已经全部赋值，若全部赋值，则已经找到结果（进行check之前，保证s是consistent）
-2. 选择未赋值的变量（这里首先选择未赋值的senior相关变量，然后再选择值域少的变量）
-3. 对变量的值域进行排序（这里优先选择RELAX，可以尽早满足relax 2天的约束，并且尽快排除不满足连续休息小于3天的约束的状态。
-4. 对于值域中的所有值
-   1. 对变量进行赋值
-   2. 检查是否consistent
-   3. 进行推理，删除其他变量值域中的一些值
-   4. 如果存在某个变量值域个数为0,则说明该赋值不可行，需要恢复
-   5. 递归进行backtrack
+1. `chechComplete`检查是否已经全部赋值，若全部赋值，则已经找到结果（进行check之前，保证s是consistent）
+2. `selectUnassignedVar`选择未赋值的变量（这里首先选择未赋值的senior相关变量，然后再选择值域少的变量）
+3. `orderDomainValues`对变量的值域进行排序（这里优先选择RELAX，可以尽早满足relax 2天的约束，并且尽快排除不满足连续休息小于3天的约束的状态。
+4. `for (auto value: value_list)`对于值域中的所有值
+   1. `s.assignment[var.day][var.emp] = value`对变量进行赋值
+   2. `checkConsistent`检查是否consistent，对于UNASSIGNED的情况有特殊处理，详见`checkStateGeneral`函数注释
+   3. `inference`根据工人冲突情况`conflict1`,`conflict2`进行推理，删除其他变量值域中的一些值
+   4. `infer.failure == true`如果存在某个变量值域个数为0,则说明该赋值不可行，需要恢复
+   5. `auto result = backtrack()`递归进行backtrack
    6. 若backtrack失败，则需要恢复
-   7. 将infer删除的值集合恢复
-   8. 对第1小步变量的赋值进行恢复
+   7. `recoverFromInfer`将infer删除的值集合恢复
+   8. `a.assignment[var.day][var.emp] = old_v`对第1小步变量的赋值进行恢复
+
+### `checkStateGeneral`
+
+检查是否满足每个工人休息>=2, 连续休息<3,每天 >= at_least_count 个人值班，每天至少一个senior值班，对于unassigned的情况特殊处理
+
+如果一天中有人未赋值，则一天至少中有at_least_count个工人约束成立，如果一天中有一个人工作，则不论是否有unassigned,该条件都成立
+
+如果工人一周中在检测到3天连续休息之前有unassigned的情况，则没有连续3天休息成立
+
+如果有unassigned的情况，则工人有两天休息一定成立。
+
 
 
 ## 优化方法
@@ -176,8 +195,8 @@ bool backtrack(State &s, CSP &csp) {
 
 ### 度启发式
 
-由于senior关联的约束更多，所以在选择变量时优先考虑senior相关变量。这样可以在较早的是否满足senior至少一个的约束。
+由于senior关联的约束更多，所以在选择变量时优先考虑senior相关变量。这样可以在较早判断是否满足senior至少一个的约束。
 
 ### 前向检验
 
-在infer时将assigned的variable相关联的值域进行更新，如果有值域个数为0,则failure。这样可以提前发现冲突问题，尽早规避。
+在infer时将assigned的variable相关联的变量值域进行更新（在这里就是工人之间冲突的情况，在某个工人在某天完成赋值后，对另一个工人的值域进行更新），如果有变量值域个数为0,则failure。这样可以提前发现冲突问题，尽早规避。
