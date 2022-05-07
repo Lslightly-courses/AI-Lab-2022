@@ -123,11 +123,61 @@ IDA_h2
 
 ## 算法主要思路
 
+```c++
+bool backtrack(State &s, CSP &csp) {
+	if (csp.checkComplete(s))   //  检查是否全部已经赋值了
+		return true;
+	auto var = csp.selectUnassignedVar(s);
+	auto value_list = csp.orderDomainValues(var);
+	for (auto value: value_list) {
+		auto old_v = s.assignment[var.day][var.emp];
+		s.assignment[var.day][var.emp] = value;
+		//	检查赋值是否满足约束
+		if (csp.checkConsistent(s)) {
+			//	保留推理删除的值，以便恢复
+			auto infer = csp.inference(s);  // 推理部分会删除一些变量的可取值
+			if (!infer.failure) {	// 推理结果中没有变量可取值为0个
+				auto result = backtrack(s, csp);
+				if (result) {
+					return true;
+				}
+			}
+
+			//	恢复
+			csp.recoverFromInfer(infer);
+		}
+
+		//	恢复
+		s.assignment[var.day][var.emp] = old_v;
+	}
+	return false;
+}
+```
+
+1. 检查是否已经全部赋值，若全部赋值，则已经找到结果（进行check之前，保证s是consistent）
+2. 选择未赋值的变量（这里首先选择未赋值的senior相关变量，然后再选择值域少的变量）
+3. 对变量的值域进行排序（这里优先选择RELAX，可以尽早满足relax 2天的约束，并且尽快排除不满足连续休息小于3天的约束的状态。
+4. 对于值域中的所有值
+   1. 对变量进行赋值
+   2. 检查是否consistent
+   3. 进行推理，删除其他变量值域中的一些值
+   4. 如果存在某个变量值域个数为0,则说明该赋值不可行，需要恢复
+   5. 递归进行backtrack
+   6. 若backtrack失败，则需要恢复
+   7. 将infer删除的值集合恢复
+   8. 对第1小步变量的赋值进行恢复
 
 
 ## 优化方法
 
 ### MRV
 
+在选择变量时，如果没有UNASSIGNED的senior相关变量，则首先选择值域少的变量。可以减少树的深度，尽早发现不满足约束的情况。
+
+### 度启发式
+
+由于senior关联的约束更多，所以在选择变量时优先考虑senior相关变量。这样可以在较早的是否满足senior至少一个的约束。
+
 ### 前向检验
 
+在infer时将assigned的variable相关联的值域进行更新，如果有值域个数为0,则failure。这样可以提前发现冲突问题，尽早规避。
