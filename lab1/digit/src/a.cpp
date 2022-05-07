@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <bitset>
-#include <queue>
 #include <stack>
 #include <set>
 #include <map>
@@ -36,13 +35,12 @@ using namespace std;
 typedef struct {
 	int i, j;
 }Location;
-class WalkAbility;
-class State;
-class Node;
-class EvalCmp;
-list<Node*> node_list;
-list<State*> state_list;
+class WalkAbility;	//	行走能力
+class State;		//	状态
+class Node;			//	节点
+list<State*> state_list;	//	状态集合
 
+//	方向字符串
 map<char, string> map_direct_to_str = {
 	{LEFT, "L"},
 	{RIGHT, "R"},
@@ -54,6 +52,11 @@ class WalkAbility {
 private:
 	bitset<4> ability[DIM][DIM];
 public:
+	/**
+	 * @brief 构建行走能力表格
+	 * 
+	 * @param input 输入方格
+	 */
 	WalkAbility(vector<vector<int>> &input) {
 		for (int i = 0; i < DIM; i++) {
 			for (int j = 0; j < DIM; j++) {
@@ -126,6 +129,13 @@ private:
 		cur_loc = dst;
 	}
 public:
+	/**
+	 * @brief Create a state object
+	 * 
+	 * @param dist 分布图
+	 * @param my_loc 飞船当前状态，即0号位置
+	 * @return State* 
+	 */
 	static State *create_state(vector<vector<int>> dist, Location my_loc) {
 		State *s = new State;
 		s->star_dist = dist;
@@ -134,6 +144,12 @@ public:
 		state_list.push_back(s);
 		return s;
 	}
+	/**
+	 * @brief 根据方向产生新状态
+	 * 
+	 * @param direction 方向
+	 * @return State* 
+	 */
 	State *walk(char direction) {
 		State *s = create_state(star_dist, cur_loc);
 		switch (direction)
@@ -159,6 +175,11 @@ public:
 		}
 		return s;
 	}
+	/**
+	 * @brief 求后继状态集合
+	 * 
+	 * @return vector<State*> 
+	 */
 	vector<State*> succ() {
 		vector<State*> result;
 		if (walk_ability->left(cur_loc)) {
@@ -208,6 +229,14 @@ public:
 int (*Hfunc)(const vector<vector<int>>&, const vector<vector<int>>&);
 State *target_state;
 
+/**
+ * @brief 检查是否为相反方向，若为相反方向，则返回true,否则返回false
+ * 
+ * @param a 方向a
+ * @param b 方向b
+ * @return true 相反方向
+ * @return false 相同方向
+ */
 bool reverseDirection(char a, char b) {
 	switch (a) {
 		case LEFT:
@@ -234,7 +263,7 @@ bool reverseDirection(char a, char b) {
 			} else {
 				return false;
 			}
-		case NODIRECTION:
+		case NODIRECTION:	//	都不是相反方向
 			return false;
 		default:
 			return false;
@@ -244,9 +273,9 @@ bool reverseDirection(char a, char b) {
 class Node {
 private:
 	State *cur_state;
-	int g;
-	int eval;
-	string traceback;
+	int g;				//	已走路径
+	int eval;			//	eval=g+h
+	string traceback;	//	回溯路径，这里直接继承下来。
 public:
 	static Node* create_node(State *s, int g, string path) {
 		Node *node = new Node();
@@ -268,6 +297,11 @@ public:
 	State *get_state() const {
 		return cur_state;
 	}
+	/**
+	 * @brief 创建node的后续节点，对于返回产生该节点的节点情况进行忽略处理。同时需要将路径记录在新生成的节点中。
+	 * 
+	 * @return vector<Node*> 
+	 */
 	vector<Node*> succ() {
 		auto succ_state = cur_state->succ();
 		vector<Node*> result;
@@ -280,6 +314,11 @@ public:
 		}
 		return result;
 	}
+	/**
+	 * @brief 
+	 * 
+	 * @return string 路径
+	 */
 	string Trace() {
 		return traceback;
 	}
@@ -290,6 +329,12 @@ public:
 	}
 };
 
+/**
+ * @brief 节点比较大小，如果两个节点的状态相同，则视为相同，否则按照eval进行排序。
+ * 
+ * 如果eval还相同，则按照Node *指针大小进行排序
+ * 
+ */
 class NodeLessCmp {
 public:
 	bool operator()(Node *a, Node *b) const {
@@ -307,6 +352,13 @@ public:
 	}
 };
 
+/**
+ * @brief 错位星球数，不包括飞船本身。显然admissible
+ * 
+ * @param start 
+ * @param target 
+ * @return int 
+ */
 int h1(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	int count = 0;
 	for (int i = 0; i < DIM; i++) {
@@ -318,6 +370,23 @@ int h1(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	return count;
 }
 
+/**
+ * @brief 每个星球的绝对曼哈顿距离之和
+ * 
+ * 对于每个点，假设当前位置为{i, j}, 目标位置为{x, y}
+ * 则绝对曼哈顿距离定义为min{|i-x|, 5-|i-x|}+min{|j-y|, 5-|j-y|}
+ * 
+ * 简单来说，就是在边界上将隧道全部打通，飞船可以在任何边界上进行跳跃。
+ * 
+ * 因为每个点必须通过飞船才能移动，而该点到达目标点的最短距离就是上面的绝对曼哈顿距离
+ * 另外，由于飞船每次只能移动一个点，而不会对其他点有影响
+ * 
+ * 因此，所有星球的绝对曼哈顿距离之和一定小于真实移动步数。即admissible
+ * 
+ * @param start 开始状态
+ * @param target 目标状态
+ * @return int 
+ */
 int h2(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	Location two_locs[DIM*DIM][2];
 	for (int i = 0; i < DIM*DIM; i++) {
@@ -347,6 +416,12 @@ int h2(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	return max_dist;
 }
 
+/**
+ * @brief 获取飞船当前位置
+ * 
+ * @param dist 当前分布
+ * @return Location 
+ */
 Location getMyLocation(const vector<vector<int>> &dist) {
 	Location my_loc;
 	for (int i = 0; i < DIM; i++) {
@@ -366,8 +441,11 @@ Node *IDAStar(State *start_s, State *target_s, int (*Hfunc)(const vector<vector<
 
 string solution_str;
 
+//	调用A*,使用启发式h1
 void A_h1(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	auto start_s = State::create_state(start, getMyLocation(start));
+	
+	//	初始化行动能力表
 	walk_ability = new WalkAbility(start_s->get_dist());
 	auto target_s = State::create_state(target, getMyLocation(target));
 	Hfunc = h1;
@@ -377,6 +455,7 @@ void A_h1(const vector<vector<int>> &start, const vector<vector<int>> &target) {
 	solution_str = solution;
 	free(walk_ability);
 }
+//	调用A*,使用启发式h2
 void A_h2(const vector<vector<int> > &start, const vector<vector<int>> &target) {
 	auto start_s = State::create_state(start, getMyLocation(start));
 	walk_ability = new WalkAbility(start_s->get_dist());
@@ -388,6 +467,7 @@ void A_h2(const vector<vector<int> > &start, const vector<vector<int>> &target) 
 	solution_str = solution;
 	free(walk_ability);
 }
+//	调用IDA*,使用启发式h1
 void IDA_h1(const vector<vector<int> > &start, const vector<vector<int>> &target) {
 	auto start_s = State::create_state(start, getMyLocation(start));
 	walk_ability = new WalkAbility(start_s->get_dist());
@@ -399,6 +479,7 @@ void IDA_h1(const vector<vector<int> > &start, const vector<vector<int>> &target
 	solution_str = solution;
 	free(walk_ability);
 }
+//	调用IDA*,使用启发式h2
 void IDA_h2(const vector<vector<int> > &start, const vector<vector<int>> &target) {
 	auto start_s = State::create_state(start, getMyLocation(start));
 	walk_ability = new WalkAbility(start_s->get_dist());
@@ -413,17 +494,26 @@ void IDA_h2(const vector<vector<int> > &start, const vector<vector<int>> &target
 
 typedef struct {} Empty;
 
+/**
+ * @brief tree search + admissible版本
+ * 包含open_list和closed_list
+ * 
+ * @param start_s 
+ * @param target_s 
+ * @param Hfunc 
+ * @return Node* 
+ */
 Node *AStar(State *start_s, State *target_s, int (*Hfunc)(const vector<vector<int>> &start, const vector<vector<int>> &target)) {
+	//	通过map实现的优先队列，即可以进行排序，又方便查找
 	map<Node*, Empty, NodeLessCmp> open_list;
-	//	TODO modify closed list, add closed list cmp, admissable and closed_list
 	set<Node*, NodeLessCmp> closed_list;
 	target_state = target_s;
 	Node* start_node = Node::create_node(start_s, 0, "");
 	open_list[start_node] = {};
 	Node* result = nullptr;
 	while (!open_list.empty()) {
-		auto n = open_list.begin()->first;
-		open_list.erase(open_list.begin());
+		auto n = open_list.begin()->first;	//	eval最小的节点
+		open_list.erase(open_list.begin());	//	pop
 		if (n->goal_test()) {
 			result = n;
 			break;
@@ -432,27 +522,28 @@ Node *AStar(State *start_s, State *target_s, int (*Hfunc)(const vector<vector<in
 		for (auto succ: succs) {
 			auto closed_iter = closed_list.find(succ);
 			auto open_iter = open_list.find(succ);
-			if (closed_iter == closed_list.end() && open_iter == open_list.end()) {
+			if (closed_iter == closed_list.end() && open_iter == open_list.end()) {	//	在open_list和closed_list中都没有找到，则直接加入open_list
 				DEBUGOUT("not in closed list nor open list")
 				open_list[succ] = {};
-			} else {
+			} else {	//	在某一个list中找到，要么是open_list,要么是closed_list
 				if (open_iter != open_list.end()) {
-					if (open_iter->first->get_eval() > succ->get_eval()) {
+					if (open_iter->first->get_eval() > succ->get_eval()) {	//	如果发现eval < open_list中的结果，则进行更新
 						DEBUGOUT("in open list and <")
+						//	删除再插入可以进行更新
 						open_list.erase(open_iter);
 						open_list[succ] = {};
-					} else {
+					} else {	//	直接回收，不考虑
 						DEBUGOUT("in open list > delete")
 						delete succ;
 						DEBUGOUT("delete succeed")
 						continue;
 					}
-				} else {
-					if ((*closed_iter)->get_eval() > succ->get_eval()) {
+				} else {	//	closed_list
+					if ((*closed_iter)->get_eval() > succ->get_eval()) {	//	eval < closed_list中的结果，则需要从closed_list中删除，并添加到open_list中
 						DEBUGOUT("in closed list and <")
 						closed_list.erase(closed_iter);
 						open_list[succ] = {};
-					} else {
+					} else {	//	在closed_list中存在且不小于，则删除
 						DEBUGOUT("in closed list but > delete")
 						delete succ;
 						DEBUGOUT("delete succeed")
@@ -461,8 +552,8 @@ Node *AStar(State *start_s, State *target_s, int (*Hfunc)(const vector<vector<in
 				}
 			}
 		}
-		// closed_list.insert(n);
 	}
+	//	free
 	for (auto pair: open_list) {
 		if (pair.first != result)
 			delete pair.first;
@@ -477,66 +568,50 @@ Node *AStar(State *start_s, State *target_s, int (*Hfunc)(const vector<vector<in
 	return result;
 }
 
+/**
+ * @brief 根据eval来限制深度优先遍历的IDA*
+ * 
+ * @param start_s 
+ * @param target_s 
+ * @param Hfunc 
+ * @return Node* 
+ */
 Node *IDAStar(State *start_s, State *target_s, int (*Hfunc)(const vector<vector<int>> &start, const vector<vector<int>> &target)) {
 	target_state = target_s;
-	int d_limit = 32;
-	map<Node*, Empty, NodeLessCmp> open_list;
+	
 	auto start_node = Node::create_node(start_s, 0, "");
-	set<Node*, NodeLessCmp> closed_list;
-	open_list[start_node] = {};
+	int d_limit = start_node->get_eval();	//	最大结果为32,因此设置32，可以防止最长例子的进一步搜索。
+	stack<Node*> list;	//	使用栈实现深度优先
 	Node* result = nullptr;
 	while (1) {
 		int next_d_limit = INT32_MAX;
-		while (!open_list.empty()) {
-			auto n = open_list.begin()->first;
-			open_list.erase(open_list.begin());
-			if (n->get_g() > d_limit) {
-				next_d_limit = min(next_d_limit, n->get_g());
+		list.push(start_node);
+		while (!list.empty()) {
+			auto n = list.top();	//	pop
+			list.pop();
+
+			if (n->get_eval() > d_limit) {	//	如果大于d_limit,则忽视该节点
+				next_d_limit = min(next_d_limit, n->get_eval());
 				continue;
 			}
 			if (n->goal_test()) {
 				result = n;
 				break;
 			}
-			auto succs = n->succ();
+			auto succs = n->succ();	//	apply actions to s
 			for (auto succ: succs) {
-				auto closed_iter = closed_list.find(succ);
-				auto open_iter = open_list.find(succ);
-				if (closed_iter == closed_list.end() && open_iter == open_list.end()) {
-					open_list[succ] = {};
-				} else {
-					if (open_iter != open_list.end()) {
-						if (open_iter->first->get_eval() > succ->get_eval()) {
-							open_list.erase(open_iter);
-							open_list[succ] = {};
-						} else {
-							delete succ;
-							continue;
-						}
-					} else {
-						if ((*closed_iter)->get_eval() > succ->get_eval()) {
-							closed_list.erase(closed_iter);
-							open_list[succ] = {};
-						} else {
-							delete succ;
-							continue;
-						}
-					}
-				}
+				list.push(succ);
 			}
-			// closed_list.insert(n);
 		}
 		if (result) {
 			break;
 		}
 		d_limit = next_d_limit;
 	}
-	for (auto pair: open_list) {
-		if (pair.first != result)
-			delete pair.first;
-	}
-	for (auto node: closed_list) {
-		delete node;
+	while (!list.empty()) {
+		auto n = list.top();
+		delete n;
+		list.pop();
 	}
 	for (auto s: state_list) {
 		delete s;
@@ -547,7 +622,14 @@ Node *IDAStar(State *start_s, State *target_s, int (*Hfunc)(const vector<vector<
 
 class Driver {
 private:
-	map<string, string> out_str;
+	map<string, string> statistic_str;
+	map<string, string> output_str;
+	/**
+	 * @brief Get the vec from input.txt and target.txt
+	 * 
+	 * @param src 
+	 * @return vector<vector<int>> 
+	 */
 	vector<vector<int>> get_vec_from_txt(string src) {
 		ifstream fin;
 		fin.open(src);
@@ -565,6 +647,13 @@ private:
 		fin.close();
 		return dist;
 	}
+	/**
+	 * @brief 根据algo执行对应算法
+	 * 
+	 * @param algo 
+	 * @param start 
+	 * @param target 
+	 */
 	void algo(string algo, vector<vector<int>> &start, vector<vector<int>> &target) {
 		if (algo == "A_h1") {
 			A_h1(start, target);
@@ -579,6 +668,14 @@ private:
 			exit(1);
 		}
 	}
+	/**
+	 * @brief 统计执行时间和行动序列等
+	 * 
+	 * @param algo 
+	 * @param input_txt 
+	 * @param target_txt 
+	 * @param i 
+	 */
 	void statistic(string algo, string input_txt, string target_txt, int i) {
 		cout << algo << ":\t" << input_txt << "\t";
 		auto start = chrono::system_clock::now();
@@ -586,13 +683,17 @@ private:
 		auto end = chrono::system_clock::now();
 		auto duration = chrono::duration_cast<chrono::microseconds>(end-start);
 		auto time = double(duration.count())*chrono::microseconds::period::num / chrono::microseconds::period::den;
-		out_str[algo] += to_string(i) + "," + to_string(time) + "," + solution_str + "," + to_string(solution_str.length()) + "\n";
+		statistic_str[algo] += to_string(i) + "," + to_string(time) + "," + solution_str + "," + to_string(solution_str.length()) + "\n";
+		output_str[algo] += solution_str+","+to_string(time)+"\n";
 	}
 	void output(string algo) {
 		auto output_txt = "../output/output_"+algo+".txt";
+		auto statistic_txt = "../output/statistic_"+algo+".txt";
 		auto f = freopen(output_txt.c_str(), "w", stdout);
-		cout << out_str[algo];
+		cout << output_str[algo];
 		fclose(f);
+		freopen(statistic_txt.c_str(), "w", stdout);
+		cout << statistic_str[algo];
 	}
 public:
 	void runall() {
@@ -607,10 +708,14 @@ public:
 			auto num_suffix = to_string(i)+suffix;
 			num_suffixs.push_back(num_suffix);
 		}
-		out_str["A_h1"] = "";
-		out_str["A_h2"] = "";
-		out_str["IDA_h1"] = "";
-		out_str["IDA_h2"] = "";
+		statistic_str["A_h1"] = "";
+		statistic_str["A_h2"] = "";
+		statistic_str["IDA_h1"] = "";
+		statistic_str["IDA_h2"] = "";
+		output_str["A_h1"] = "";
+		output_str["A_h2"] = "";
+		output_str["IDA_h1"] = "";
+		output_str["IDA_h2"] = "";
 		int i = 0;
 		for (auto num_suffix: num_suffixs) {
 			auto input_txt = input_prefix+num_suffix, target_txt = target_prefix+num_suffix;
@@ -641,6 +746,6 @@ int main(int argc, char **argv) {
 	string target_txt = argv[3];
 	Driver driver;
 	driver.run(algo, input_txt, target_txt);
-	OUTPUT(driver.runall();)
+	OUTPUT(driver.runall();)	// 使用条件编译-DOUT可执行对所有input.txt执行
 	return 0;
 }

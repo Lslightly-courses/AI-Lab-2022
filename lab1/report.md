@@ -8,23 +8,126 @@ A*算法
 
 IDA*算法
 
-在A*算法的基础上添加深度受限的条件。在给定受限深度d_limit的情况下，通过比较g(n)(这里g(n)就代表深度)和受限深度d_limit来判断节点a是否要进行拓展，如果g(n)>d_limit，则不进行拓展，而是转到其他g(n) < d_limit深度的节点进行拓展，等到d_limit增大后再访问这个二级点。然后受限深度d_limit不断增大，加深，直到搜索到最优解。在此过程中不清空open_list,而是在下一个迭代中继续使用现有结果。
+使用迭代加深的深度优先算法，但是限制深度d_limit=eval,当出现比限制深度d_limit还要大的点eval'时，忽略该点，并且如果eval' < next_d_limit,则将next_d_limit赋值为eval';对于小于限制深度的点，判断是否为目标节点，若是，则返回，否则继续拓展并加入list的top端。当list空时，进行下一轮迭代。整体上通过限制搜索深度防止深度优先的盲目搜索。
 
-自己的启发式函数是除了0之外，其他非黑洞数字距离目标位置的“循环曼哈顿距离”。由于存在时空隧道，普通的曼哈顿距离在这里无法适用。因此采用所谓的“循环曼哈顿距离”，也就是如下图所示。
+启发式函数h2定义为每个星球的绝对曼哈顿距离之和。如下图所示。
 
 ![](image/示意图.jpg)
 
-由于穿越时空隧道相当于取模操作，所以可以使用`min{|x1-x2|,5-|x1-x2|}+min{|y1-y2,5-|y1-y2|}`的方式求得循环曼哈顿距离。由于每个节点只能通过0进行替换，而且还存在隧道弯路(即源和目标在隧道的同一侧的情况)，所以该启发式函数是admissible的
+对于每个点，假设当前位置为{i, j}, 目标位置为{x, y}
+则绝对曼哈顿距离定义为min{|i-x|, 5-|i-x|}+min{|j-y|, 5-|j-y|}
+
+简单来说，就是在边界上将隧道全部打通，飞船可以在任何边界上进行跳跃。
+
+因为每个点必须通过飞船才能移动，而该点到达目标点的最短距离就是上面的绝对曼哈顿距离,
+另外，由于飞船每次只能移动一个点，所以不会对其他点有影响。并且由于隧道的位置限制，可能存在弯路的情况。
+
+因此，所有星球的绝对曼哈顿距离之和一定小于真实移动步数。即admissible
 
 ## 运行结果
+
+A_h1
+
+| 样例编号 | 运行时间(s)  | 移动序列                             | 移动步数 |
+|------|----------|----------------------------------|------|
+| 0    | 0.001677 | DDRUR                            | 5    |
+| 1    | 0.001601 | ULLUULDD                         | 8    |
+| 2    | 0.001167 | DDLUULLURR                       | 10   |
+| 3    | 0.00655  | DLDRRURRRUUURR                   | 14   |
+| 4    | 0.007314 | LUUURULLURDDRDR                  | 15   |
+| 5    | 0.009574 | LLUURRRUURDDDDLUURDD             | 20   |
+| 6    | 0.027783 | DRDLLULULUUURDRURDRDRRR          | 23   |
+| 7    | 0.004779 | URRRRDLLLLDRRRRDLLLLDRRRR        | 25   |
+| 8    | 0.111556 | DLLLDRUUUULDRRRRULDDDDRULDR      | 27   |
+| 9    | 1.348464 | RDRDLUUUURRDRDDRUUULLDRULURR     | 28   |
+| 10   | 0.074612 | DDRRUUUULLULLUULLLLLUURRDDDDRR   | 30   |
+| 11   | 5.364917 | DRUURDRRDRUULDLULDLDRDLDRURDRURD | 32   |
+
+A_h2
+
+| 样例编号 | 运行时间(s)  | 移动序列                             | 移动步数 |
+|------|----------|----------------------------------|------|
+| 0    | 0.001355 | DDRUR                            | 5    |
+| 1    | 0.001449 | ULLUULDD                         | 8    |
+| 2    | 0.001091 | DDLUULLURR                       | 10   |
+| 3    | 0.0021   | DLDRRURRRUUURR                   | 14   |
+| 4    | 0.002092 | LUUURULLURDDRDR                  | 15   |
+| 5    | 0.002166 | LLUURRRUURDDDDLUURDD             | 20   |
+| 6    | 0.010596 | DRDLLULULUUURDRURDRDRRR          | 23   |
+| 7    | 0.00187  | URRRRDLLLLDRRRRDLLLLDRRRR        | 25   |
+| 8    | 0.00866  | DRDLULLLDRUUUULDRRRRULDDDRD      | 27   |
+| 9    | 0.11677  | RDRDLUUUURRUUURDRUUULDLDDDRR     | 28   |
+| 10   | 0.008887 | DDRRUUUULLULLUULLLLLUURRDDDDRR   | 30   |
+| 11   | 0.359282 | DRUURDRRDRUULDLULDLDRDLDRURDRURD | 32   |
+
+IDA_h1
+
+| 样例编号 | 运行时间(s)  | 移动序列                             | 移动步数 |
+|------|----------|----------------------------------|------|
+| 0    | 0.001205 | DDRUR                            | 5    |
+| 1    | 0.001108 | ULLUULDD                         | 8    |
+| 2    | 0.00108  | DDLUULLURR                       | 10   |
+| 3    | 0.002163 | DLDRRURRRUUURR                   | 14   |
+| 4    | 0.006362 | LUUURULLURDDRDR                  | 15   |
+| 5    | 0.008778 | LLUURRRUURDDDDLUURDD             | 20   |
+| 6    | 0.026368 | DRDLLULULUUURDRURDRDRRR          | 23   |
+| 7    | 0.005022 | URRRRDLLLLDRRRRDLLLLDRRRR        | 25   |
+| 8    | 0.063069 | DDRULLLLDRUUUULDRRRRULDDDDR      | 27   |
+| 9    | 0.904966 | RDRDLUUUURRDRDDRUUULLDRULURR     | 28   |
+| 10   | 0.069074 | DDRRUUUULLULLUULLLLLUURRDDDDRR   | 30   |
+| 11   | 2.582178 | DRUURDRRDRUULDLULDLDRDLDRURDRURD | 32   |
+
+IDA_h2
+
+| 样例编号 | 运行时间(s)  | 移动序列                             | 移动步数 |
+|------|----------|----------------------------------|------|
+| 0    | 0.001165 | DDRUR                            | 5    |
+| 1    | 0.001205 | ULLUULDD                         | 8    |
+| 2    | 0.002187 | DDLUULLURR                       | 10   |
+| 3    | 0.001441 | DLDRRURRRUUURR                   | 14   |
+| 4    | 0.001373 | LUUURULLURDDRDR                  | 15   |
+| 5    | 0.002065 | LLUURRRUURDDDDLUURDD             | 20   |
+| 6    | 0.008369 | DRDLLULULUUURDRURDRDRRR          | 23   |
+| 7    | 0.002552 | URRRRDLLLLDRRRRDLLLLDRRRR        | 25   |
+| 8    | 0.006412 | DDRULLLLDRUUUULDRRRRULDDDDR      | 27   |
+| 9    | 0.145316 | RDRDLUUUURRDRDDRUUULLDRULURR     | 28   |
+| 10   | 0.012537 | DDRRUUUULLULLUULLLLLUURRDDDDRR   | 30   |
+| 11   | 0.28185  | DRUURDRRDRUULDLULDLDRDLDRURDRURD | 32   |
 
 
 ## 优化方法
 
+在A*算法中
+
 运行时间上，如果一个节点a状态在open_list中已经出现，但是评估结果 > open_list中的那个节点的eval，则删除open_list中的那个节点，将a节点添加到open_list中，这样可以避免一些eval较大的节点的不必要插入。如果节点a在closed_list中出现，而且也比closed_list中的eval要大，则也删除该节点。
 
-另外，在输入时就将每个点能够走的方向确定下来，之后在进行expand生成后继节点时只要进行查询即可。
+另外，在输入时就将每个点能够走的方向(WalkAbility)确定下来，之后在进行expand生成后继节点时只要进行查表即可。
 
 最重要的一点优化是在进行expand时，根据生成该节点时采用的方向，不生成反方向的节点，因为反方向一定是没有用的。如果从上往下走，则扩展节点一定不会从下回到上。该优化将时间从大概190s降低至5,6s
 
 # 实验1.2
+
+## 集合
+
+变量集合：每天每人的情况
+
+值域集合：1.UNASSIGNED(表示未赋值)。2.RELAX(表示休息)。3.WORK(表示工作)
+
+约束集合：题中所给限制
+
+1. 每个工人每周必须两天或两天以上休息
+2. 工人不可以连续休息3天
+3. 每天至少X个人值班
+4. 每天至少一个senior工人
+5. 有一些工人不想同一天上班
+
+## 算法主要思路
+
+
+
+## 优化方法
+
+### MRV
+
+### 前向检验
+
