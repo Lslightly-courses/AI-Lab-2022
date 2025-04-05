@@ -200,3 +200,31 @@ bool backtrack(State &s, CSP &csp) {
 ### 前向检验
 
 在infer时将assigned的variable相关联的变量值域进行更新（在这里就是工人之间冲突的情况，在某个工人在某天完成赋值后，对另一个工人的值域进行更新），如果有变量值域个数为0,则failure。这样可以提前发现冲突问题，尽早规避。
+
+## 模拟退火算法
+
+```c++
+function Simulated-Annealing(problem, csp) return state
+	current = makeNode(initial-state(problem))	//	每次调用生成的状态不同
+	for t = 1 to \inf do
+		T = schedule[t]
+		if T = 0 then returh current
+		next = successor(state)[random()] // 随机选择
+		\Delta E = Eval(next)-Eval(current)
+		if \Delta E > 0 then current = next
+		else current = next only with probability e^{\Delta E/T}
+
+function Eval(state) return int
+	检查当前赋值满足的约束数量
+
+function successor(state) return 
+	随机翻转state中某人某天的赋值，即从WORK到RELAX或从RELAX到WORK，生成状态序列
+
+function run(problem, csp)
+	while ((result = checkComplete(Simulated-Annealing(problem, csp))) != NULL) {
+
+	}
+	return result
+```
+
+在模拟退火算法返回后还需要检测状态是否complete
